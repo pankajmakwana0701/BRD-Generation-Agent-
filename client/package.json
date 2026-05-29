@@ -3,19 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "axios": "^1.16.1",
-    "html2pdf.js": "^0.14.0",
-    "lucide-react": "^1.16.0",
-    "mermaid": "^11.15.0",
+    "axios": "^1.6.0",
+    "cross-env": "^10.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-markdown": "^10.1.0",
-    "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "react-scripts": "5.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env CI=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -36,10 +32,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^3.4.19"
   }
 }
