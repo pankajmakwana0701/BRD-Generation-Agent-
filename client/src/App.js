@@ -29,7 +29,7 @@ export default function BrdDashboard() {
       // If you implement files later, they will hook in here smoothly
       
       console.log("Sending FormData request to backend...");
-      const response = await axios.post('http://localhost:5000/api/generate-brd', formData, {
+      const response = await axios.post('https://brd-agent-backend.onrender.com/api/generate-brd', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
