@@ -6,43 +6,39 @@ require('dotenv').config();
 
 const app = express();
 
-// Global CORS Config - Taaki frontend se block na ho
+// 🔥 FIXED: CORS config jo Vercel frontend ko access dega
 app.use(cors({
-    origin: "*", 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.options('*', cors());
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// MAIN GENERATION ENDPOINT
 app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
     try {
-        console.log("📥 Request Received on Backend!");
+        console.log("📥 Request body textPrompt:", req.body.textPrompt);
         const { textPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            console.error("❌ GEMINI_API_KEY is missing in Env Settings!");
-            return res.status(500).json({ error: "Backend Configuration Error: API Key missing." });
+            return res.status(500).json({ error: "Server Configuration Error: API Key missing." });
         }
 
         if (!textPrompt || textPrompt.trim() === "") {
-            return res.status(400).json({ error: "Please provide a valid text description." });
+            return res.status(400).json({ error: "Please provide a valid text prompt." });
         }
 
-        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown format. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
+        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
 
         const partsArray = [
             { text: `${systemPrompt}\n\nUser Project Description: ${textPrompt}` }
         ];
 
-        // Process files if available
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
                 partsArray.push({
@@ -63,40 +59,36 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             ]
         };
 
-        console.log("🚀 Hitting Gemini REST API with Correct URL Structure...");
-        
-        // 🔥 ULTIMATE FIX: URL ka exact official path for v1 without double models routing conflict
+        console.log("🚀 Hitting Google Gemini Endpoint...");
+        // API URL for standard REST invocation without redundant models tree mapping
         const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             payload,
             { headers: { 'Content-Type': 'application/json' } }
         );
 
         if (response.data && response.data.candidates && response.data.candidates[0].content && response.data.candidates[0].content.parts) {
             const resultText = response.data.candidates[0].content.parts[0].text;
-            console.log("🎯 BRD Successfully generated!");
             return res.json({ success: true, brd: resultText });
         } else {
-            console.error("❌ Unexpected JSON Tree:", JSON.stringify(response.data));
-            throw new Error("Invalid structure inside Google response object.");
+            throw new Error("Unexpected schema tree inside API response.");
         }
 
     } catch (error) {
-        console.error("--- ACTIVE REJECTION LOG ---");
+        console.error("--- ERROR LOG ---");
         if (error.response) {
-            console.error("Status Code:", error.response.status);
-            console.error("Details:", JSON.stringify(error.response.data));
+            console.error("Status:", error.response.status);
+            console.error("Data:", JSON.stringify(error.response.data));
         } else {
-            console.error("Reason:", error.message);
+            console.error("Message:", error.message);
         }
-        console.error("----------------------------");
-        res.status(500).json({ error: "Failed to process AI document generation." });
+        res.status(500).json({ error: "Internal Server Error during data compile." });
     }
 });
 
 app.get('/', (req, res) => {
-    res.send("BRD Agent Backend is live!");
+    res.send("Backend Server is Active!");
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Operational on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Live on port ${PORT}`));
