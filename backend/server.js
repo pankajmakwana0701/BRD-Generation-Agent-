@@ -1,16 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios');
 require('dotenv').config();
 
-// Load environment variables from .env
-dotenv.config();
-
 const app = express();
-
-// Enable CORS and JSON parsing
-const cors = require('cors');
 
 // Isse saari duniya ke liye backend khul jayega (Testing ke liye best hai)
 app.use(cors({
@@ -74,10 +68,10 @@ Ensure the BRD contains: Executive Summary, Functional Requirements, Non-Functio
             ]
         };
 
-        console.log("Hitting Google Gemini Latest Production Endpoint (gemini-2.5-flash)...");
+        console.log("Hitting Google Gemini Latest Production Endpoint (gemini-1.5-flash)...");
         
         const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             payload,
             { headers: { 'Content-Type': 'application/json' } }
         );
