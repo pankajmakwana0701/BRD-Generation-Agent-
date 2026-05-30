@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const axios = require('axios');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
 const app = express();
@@ -54,32 +55,13 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             });
         }
 
-        const payload = {
-            contents: [
-                {
-                    role: "user",
-                    parts: partsArray
-                }
-            ]
-        };
-
-        console.log("🚀 Hitting Google Gemini STABLE v1 Endpoint...");
+        console.log("🚀 Generating content via Gemini SDK...");
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: partsArray }] });
+        const response = await result.response;
+        const resultText = response.text();
         
-        // 🔥 ULTIMATE FIX: Changed from v1beta to v1 stable to resolve the 404 error!
-        const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            payload,
-            { headers: { 'Content-Type': 'application/json' } }
-        );
-
-        if (response.data && response.data.candidates && response.data.candidates[0].content && response.data.candidates[0].content.parts) {
-            const resultText = response.data.candidates[0].content.parts[0].text;
-            console.log("🎯 BRD Successfully generated!");
-            return res.json({ success: true, brd: resultText });
-        } else {
-            console.error("❌ Unexpected JSON Tree:", JSON.stringify(response.data));
-            throw new Error("Invalid structure inside Google response object.");
-        }
+        console.log("🎯 BRD Successfully generated!");
+        return res.json({ success: true, brd: resultText });
 
     } catch (error) {
         console.error("--- ERROR LOG ---");
