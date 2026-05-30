@@ -1,8 +1,8 @@
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const multer = require('multer');
-const axios = require('axios');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+require('dotenv').config();
 
 // Load environment variables from .env
 dotenv.config();
@@ -10,7 +10,11 @@ dotenv.config();
 const app = express();
 
 // Enable CORS and JSON parsing
-app.use(cors());
+app.use(cors({
+    origin: "*", 
+    methods: ["GET", "POST"],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Handles standard form layouts
 
