@@ -1,11 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 
+// Global CORS Config
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -19,32 +20,32 @@ app.options('*', cors());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// MAIN GENERATION ENDPOINT
 app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
     try {
-        console.log("📥 Request Received.");
+        console.log("📥 Request Received on Backend!");
         const { textPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            return res.status(500).json({ error: "❌ [VERSION 2 LIVE] API Key missing on Render Env Settings!" });
+            console.error("❌ GEMINI_API_KEY is missing in Env Settings!");
+            return res.status(500).json({ error: "Backend Configuration Error: API Key missing." });
         }
 
         if (!textPrompt || textPrompt.trim() === "") {
-            return res.status(400).json({ error: "Please provide a valid text prompt." });
+            return res.status(400).json({ error: "Please provide a valid text description." });
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
-            systemInstruction: "You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'."
-        });
+        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown format. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
 
-        // Build the prompt parts
-        const promptParts = [{ text: `User Project Description: ${textPrompt}` }];
+        const partsArray = [
+            { text: `${systemPrompt}\n\nUser Project Description: ${textPrompt}` }
+        ];
 
+        // Process files if available
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
-                promptParts.push({
+                partsArray.push({
                     inlineData: {
                         data: file.buffer.toString("base64"),
                         mimeType: file.mimetype
@@ -53,19 +54,49 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             });
         }
 
-        const result = await model.generateContent(promptParts);
-        const response = await result.response;
-        return res.json({ success: true, brd: response.text() });
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: partsArray
+                }
+            ]
+        };
+
+        console.log("🚀 Hitting Google Gemini STABLE v1 Endpoint...");
+        
+        // 🔥 ULTIMATE FIX: Changed from v1beta to v1 stable to resolve the 404 error!
+        const response = await axios.post(
+            `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            payload,
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        if (response.data && response.data.candidates && response.data.candidates[0].content && response.data.candidates[0].content.parts) {
+            const resultText = response.data.candidates[0].content.parts[0].text;
+            console.log("🎯 BRD Successfully generated!");
+            return res.json({ success: true, brd: resultText });
+        } else {
+            console.error("❌ Unexpected JSON Tree:", JSON.stringify(response.data));
+            throw new Error("Invalid structure inside Google response object.");
+        }
 
     } catch (error) {
-        console.error("❌ Gemini API Error:", error);
-        res.status(500).json({ error: `Gemini API Error: ${error.message || "Unknown error occurred"}` });
+        console.error("--- ERROR LOG ---");
+        if (error.response) {
+            console.error("Status Code:", error.response.status);
+            console.error("Details:", JSON.stringify(error.response.data));
+            res.status(500).json({ error: `Gemini Refused: ${error.response.data.error?.message || "Check Logs"}` });
+        } else {
+            console.error("Reason:", error.message);
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 app.get('/', (req, res) => {
-    res.send("Backend Server Status: Operational");
+    res.send("BRD Agent Backend is live!");
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Live on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Operational on port ${PORT}`));
