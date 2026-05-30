@@ -6,42 +6,39 @@ require('dotenv').config();
 
 const app = express();
 
-// Isse saari duniya ke liye backend khul jayega (Testing ke liye best hai)
+// Global CORS config
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Handles standard form layouts
 
-// Memory storage setup for multer
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Multer Config: Array uploads handle karne ke liye (Max 5 files)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// MAIN ENDPOINT: Generate BRD
-app.post('/api/generate-brd', upload.any(), async (req, res) => {
+// MAIN ENDPOINT: Generate BRD (Supports Multi-modal input)
+app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
     try {
-        // Log to see what is exactly reaching the server lines
         console.log("📥 Incoming Request Body:", req.body);
+        console.log(`📸 Total Uploaded Files: ${req.files ? req.files.length : 0}`);
 
         const { textPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            console.error("❌ ERROR: GEMINI_API_KEY is missing from .env!");
             return res.status(500).json({ error: "Server Configuration Error: API Key not loaded." });
         }
 
         if (!textPrompt || textPrompt.trim() === "") {
-            console.error("❌ ERROR: textPrompt arrived empty or undefined!");
             return res.status(400).json({ error: "Please provide a valid text prompt description." });
         }
 
-        console.log(`📝 Processing requirements for input: "${textPrompt.substring(0, 30)}..."`);
-
         const systemPrompt = `
-You are an expert Enterprise Business Analyst. Your job is to analyze the provided text description and generate a highly detailed, professional Business Requirements Document (BRD).
+You are an expert Enterprise Business Analyst. Your job is to analyze the provided text description and any provided wireframe/screenshot images, then generate a highly detailed, professional Business Requirements Document (BRD).
 
 The output MUST be formatted beautifully in Markdown format with clear sections.
 CRITICAL REQUIREMENT: You MUST include a visual system architecture flowchart or data flow diagram using Mermaid.js syntax inside a code block tagged with 'mermaid'. 
@@ -57,13 +54,28 @@ graph TD
 Ensure the BRD contains: Executive Summary, Functional Requirements, Non-Functional Requirements, User Personas, and the Mermaid Flowchart.
 `;
 
+        // 1. Initial part setup with text prompt
+        const partsArray = [
+            { text: `${systemPrompt}\n\nUser Project Description: ${textPrompt}` }
+        ];
+
+        // 2. Loop through all files and add them to Gemini parts array if available
+        if (req.files && req.files.length > 0) {
+            req.files.forEach(file => {
+                partsArray.push({
+                    inlineData: {
+                        data: file.buffer.toString("base64"),
+                        mimeType: file.mimetype
+                    }
+                });
+            });
+        }
+
         // Strict nested structured payload for Gemini API
         const payload = {
             contents: [
                 {
-                    parts: [
-                        { text: `${systemPrompt}\n\nUser Project Description: ${textPrompt}` }
-                    ]
+                    parts: partsArray
                 }
             ]
         };
