@@ -34,15 +34,17 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            systemInstruction: "You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'."
+        });
 
-        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
-
-        const contentsArray = [`${systemPrompt}\n\nUser Project Description: ${textPrompt}`];
+        // Build the prompt parts
+        const promptParts = [{ text: `User Project Description: ${textPrompt}` }];
 
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
-                contentsArray.push({
+                promptParts.push({
                     inlineData: {
                         data: file.buffer.toString("base64"),
                         mimeType: file.mimetype
@@ -51,15 +53,13 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             });
         }
 
-        const result = await model.generateContent(contentsArray);
+        const result = await model.generateContent(promptParts);
         const response = await result.response;
         return res.json({ success: true, brd: response.text() });
 
     } catch (error) {
-        console.error("--- LOG ---");
-        console.error(error);
-        // This will tell us if version 2 is successfully running!
-        res.status(500).json({ error: `❌ [VERSION 2 LIVE] Gemini API Error: ${error.message}` });
+        console.error("❌ Gemini API Error:", error);
+        res.status(500).json({ error: `Gemini API Error: ${error.message || "Unknown error occurred"}` });
     }
 });
 
