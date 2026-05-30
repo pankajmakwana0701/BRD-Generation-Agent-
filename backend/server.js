@@ -10,10 +10,13 @@ dotenv.config();
 const app = express();
 
 // Enable CORS and JSON parsing
+const cors = require('cors');
+
+// Isse saari duniya ke liye backend khul jayega (Testing ke liye best hai)
 app.use(cors({
     origin: "*", 
-    methods: ["GET", "POST"],
-    credentials: true
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Handles standard form layouts
