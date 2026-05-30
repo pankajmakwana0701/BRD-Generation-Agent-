@@ -1,12 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { GoogleGenerativeAI } = require('@google/generative-ai'); // Official Google SDK
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const app = express();
 
-// Global CORS Policy
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -20,37 +19,27 @@ app.options('*', cors());
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// MAIN GENERATION ENDPOINT
 app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
     try {
-        console.log("📥 Request Received on SDK Router.");
+        console.log("📥 Request Received.");
         const { textPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            console.error("❌ GEMINI_API_KEY missing in Render Settings!");
-            return res.status(500).json({ error: "API Key missing on server configuration." });
+            return res.status(500).json({ error: "❌ [VERSION 2 LIVE] API Key missing on Render Env Settings!" });
         }
 
         if (!textPrompt || textPrompt.trim() === "") {
             return res.status(400).json({ error: "Please provide a valid text prompt." });
         }
 
-        // Initialize Official SDK safely
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const systemPrompt = `You are an expert Enterprise Business Analyst. Your job is to analyze the user description and any attached wireframes, then generate a highly detailed, professional Business Requirements Document (BRD) formatted beautifully in Markdown.
-        CRITICAL REQUIREMENT: You MUST include a visual system architecture flowchart or data flow diagram using Mermaid.js syntax inside a code block tagged with 'mermaid'.
-        Ensure it contains: Executive Summary, Functional Requirements, Non-Functional Requirements, User Personas, and the Mermaid Flowchart.`;
+        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
 
-        // Build the contents array for the SDK seamlessly
-        const contentsArray = [];
-        
-        // 1. Append the text prompt context
-        contentsArray.push(`${systemPrompt}\n\nUser Project Description: ${textPrompt}`);
+        const contentsArray = [`${systemPrompt}\n\nUser Project Description: ${textPrompt}`];
 
-        // 2. Append images ONLY if the user uploaded them
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
                 contentsArray.push({
@@ -62,18 +51,15 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             });
         }
 
-        console.log("🚀 Calling Google Gemini SDK Engine (gemini-1.5-flash)...");
         const result = await model.generateContent(contentsArray);
         const response = await result.response;
-        const resultText = response.text();
-
-        console.log("🎯 BRD Compiled Successfully via SDK!");
-        return res.json({ success: true, brd: resultText });
+        return res.json({ success: true, brd: response.text() });
 
     } catch (error) {
-        console.error("--- SDK ACTIVE ERROR LOG ---");
-        console.error(error.message);
-        res.status(500).json({ error: `AI Execution Error: ${error.message}` });
+        console.error("--- LOG ---");
+        console.error(error);
+        // This will tell us if version 2 is successfully running!
+        res.status(500).json({ error: `❌ [VERSION 2 LIVE] Gemini API Error: ${error.message}` });
     }
 });
 
@@ -82,4 +68,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server operational on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Live on port ${PORT}`));
