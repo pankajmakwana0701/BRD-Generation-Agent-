@@ -167,7 +167,7 @@ function App() {
         </section>
 
         {/* Right Side: Output Panel */}
-        <section className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-[500px] flex flex-col">
+        <section className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-[600px] flex flex-col">
           <div className="border-b border-slate-800 pb-3 mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-400 tracking-wider uppercase">
               Generated BRD Output (Markdown View)
