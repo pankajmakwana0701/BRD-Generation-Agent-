@@ -80,12 +80,13 @@ Ensure the BRD contains: Executive Summary, Functional Requirements, Non-Functio
             ]
         };
 
-        console.log("Hitting Google Gemini Latest Production Endpoint (gemini-1.5-flash)...");
-        
-        const response = await axios.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            payload,
-            { headers: { 'Content-Type': 'application/json' } }
+       console.log("Hitting Google Gemini Production Endpoint (gemini-1.5-flash)...");
+
+// URL ko v1beta se v1 mein change kiya hai:
+const response = await axios.post(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    payload,
+    { headers: { 'Content-Type': 'application/json' } }
         );
 
         if (response.data && response.data.candidates && response.data.candidates[0].content.parts[0].text) {
