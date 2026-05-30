@@ -1,12 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const { GoogleGenerativeAI } = require('@google/generative-ai'); // CORRECTION: Correct SDK Class Name
+const { GoogleGenerativeAI } = require('@google/generative-ai'); // Official Google SDK
 require('dotenv').config();
 
 const app = express();
 
-// Global CORS Policy - allows frontend to communicate seamlessly
+// Global CORS Policy
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -17,40 +17,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.options('*', cors());
 
-// Multer memory storage configuration for handling array of files
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Initialize Google Generative AI safely
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-
-// MAIN ENDPOINT: Generate BRD
+// MAIN GENERATION ENDPOINT
 app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
     try {
-        console.log("📥 Request Received on Backend Router.");
+        console.log("📥 Request Received on SDK Router.");
         const { textPrompt } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY;
 
-        if (!process.env.GEMINI_API_KEY) {
-            console.error("❌ CRITICAL: GEMINI_API_KEY is missing from Render Env Settings!");
-            return res.status(500).json({ error: "Backend Configuration Error: API Key missing on server." });
+        if (!apiKey) {
+            console.error("❌ GEMINI_API_KEY missing in Render Settings!");
+            return res.status(500).json({ error: "API Key missing on server configuration." });
         }
 
         if (!textPrompt || textPrompt.trim() === "") {
-            return res.status(400).json({ error: "Please provide a valid text prompt description." });
+            return res.status(400).json({ error: "Please provide a valid text prompt." });
         }
 
-        // Initialize model engine layer using official SDK methods
-        const aiInstance = genAI || new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = aiInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Initialize Official SDK safely
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const systemPrompt = `You are an expert Enterprise Business Analyst. Your job is to analyze the user request and generate a professional, highly comprehensive Business Requirements Document (BRD) in Markdown format.
-Include sections: Executive Summary, Functional Requirements, Non-Functional Requirements, User Personas, and a system flow using Mermaid.js inside a 'mermaid' tagged code block.`;
+        const systemPrompt = `You are an expert Enterprise Business Analyst. Your job is to analyze the user description and any attached wireframes, then generate a highly detailed, professional Business Requirements Document (BRD) formatted beautifully in Markdown.
+        CRITICAL REQUIREMENT: You MUST include a visual system architecture flowchart or data flow diagram using Mermaid.js syntax inside a code block tagged with 'mermaid'.
+        Ensure it contains: Executive Summary, Functional Requirements, Non-Functional Requirements, User Personas, and the Mermaid Flowchart.`;
 
-        // Setting up standard parts array content layer for multimodal generation
-        const contentsArray = [`${systemPrompt}\n\nUser Project Description: ${textPrompt}`];
+        // Build the contents array for the SDK seamlessly
+        const contentsArray = [];
+        
+        // 1. Append the text prompt context
+        contentsArray.push(`${systemPrompt}\n\nUser Project Description: ${textPrompt}`);
 
-        // Safely parse uploaded wireframe/screenshot image files into base64 mapping if present
+        // 2. Append images ONLY if the user uploaded them
         if (req.files && req.files.length > 0) {
             req.files.forEach(file => {
                 contentsArray.push({
@@ -62,25 +62,24 @@ Include sections: Executive Summary, Functional Requirements, Non-Functional Req
             });
         }
 
-        console.log("🚀 Requesting content generation from stable gemini-1.5-flash engine...");
+        console.log("🚀 Calling Google Gemini SDK Engine (gemini-1.5-flash)...");
         const result = await model.generateContent(contentsArray);
         const response = await result.response;
         const resultText = response.text();
 
-        console.log("🎯 BRD Compiled and verified successfully!");
+        console.log("🎯 BRD Compiled Successfully via SDK!");
         return res.json({ success: true, brd: resultText });
 
     } catch (error) {
-        console.error("--- ACTIVE REJECTION LOG ---");
-        console.error(error);
-        res.status(500).json({ error: error.message || "Failed to process AI document tree generation." });
+        console.error("--- SDK ACTIVE ERROR LOG ---");
+        console.error(error.message);
+        res.status(500).json({ error: `AI Execution Error: ${error.message}` });
     }
 });
 
-// Root route check
 app.get('/', (req, res) => {
-    res.send("BRD Agent Backend is live and healthy!");
+    res.send("Backend Server Status: Operational");
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server fully operational on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server operational on port ${PORT}`));
