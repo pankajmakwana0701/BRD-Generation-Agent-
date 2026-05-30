@@ -2,197 +2,210 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
+import { Upload, FileText, Loader2, Sparkles } from 'lucide-react';
 
-export default function BrdDashboard() {
+function App() {
   const [textPrompt, setTextPrompt] = useState('');
-  const [brd, setBrd] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [generatedBrd, setGeneratedBrd] = useState('');
   const [error, setError] = useState('');
 
-  // 1. Core API Request handler
-  // 1. Core API Request handler (FIXED FOR MULTIPART / FORM-DATA)
-  const handleGenerateBRD = async () => {
+  // Handle file selection
+  const handleFileChange = (e) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  // Submit handler to call our Backend API
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!textPrompt.trim()) {
-      setError('Please enter your project requirements first.');
+      setError('Please provide a brief project description.');
       return;
     }
 
     setLoading(true);
     setError('');
-    setBrd('');
+    setGeneratedBrd('');
+
+    // Prepare Multipart Form Data for Multi-modal upload
+    const formData = new FormData();
+    formData.append('textPrompt', textPrompt);
+    selectedFiles.forEach((file) => {
+      formData.append('files', file); // Matches backend multer array field 'files'
+    });
 
     try {
-      // Create FormData instance so Multer can parse it perfectly
-      const formData = new FormData();
-      formData.append('textPrompt', textPrompt);
-
-      // If you implement files later, they will hook in here smoothly
-      
-      console.log("Sending FormData request to backend...");
       const response = await axios.post('https://brd-agent-backend.onrender.com/api/generate-brd', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      if (response.data && response.data.success) {
-        setBrd(response.data.brd);
+      if (response.data.success) {
+        setGeneratedBrd(response.data.brd);
       } else {
-        setError('Failed to fetch structured requirements.');
+        setError('Something went wrong. Please try again.');
       }
     } catch (err) {
-      console.error("Frontend Error Details:", err);
-      setError(err.response?.data?.error || 'Server error. Please ensure backend is running.');
+      console.error(err);
+      setError(err.response?.data?.error || 'Failed to connect to the AI Server.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. High-Fidelity PDF Export Engine
   const downloadPDF = () => {
-    const element = document.getElementById('brd-rendered-content');
+    const element = document.getElementById('brd-content');
     if (!element) return;
 
     const opt = {
-      margin:       [0.5, 0.5, 0.5, 0.5], // Standard corporate padding
-      filename:     'Business_Requirements_Document.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      margin: [0.5, 0.5],
+      filename: 'Business_Requirements_Document.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(element).save();
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white font-sans p-6 flex flex-col items-center">
-      
-      {/* Header Accent */}
-      <header className="w-full max-w-7xl border-b border-neutral-900 pb-4 mb-8 flex justify-between items-center">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
-          BRD Generation Agent <span className="text-xs text-neutral-500 font-mono">v1.1</span>
-        </h1>
-        <div className="flex items-center gap-2 text-xs bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-neutral-400 font-mono">AI Agent Online</span>
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-6">
+      {/* Top Header */}
+      <header className="max-w-7xl mx-auto mb-8 border-b border-slate-800 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-600 p-2 rounded-lg">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">BRD Generation Agent</h1>
+            <p className="text-xs text-slate-400">HackDays Delhi - Track: Google Gemini AI</p>
+          </div>
         </div>
+        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-semibold">
+          AI Agent Online
+        </span>
       </header>
 
-      {/* Main Multi-Column Split Workspace */}
-      <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      {/* Main Workspace Layout */}
+      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* LEFT COLUMN: Controls & Input Channels */}
-        <section className="space-y-6">
-          <div className="bg-neutral-900/40 border border-neutral-900 p-6 rounded-2xl shadow-xl">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-              Project Requirements & Description
-            </h2>
-            <textarea
-              value={textPrompt}
-              onChange={(e) => setTextPrompt(e.target.value)}
-              placeholder="e.g., me ek hr hu mere liye ek portfolio website banni hai..."
-              className="w-full h-48 bg-neutral-950 border border-neutral-800 rounded-xl p-4 text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-amber-500/50 transition-colors resize-none text-sm leading-relaxed"
-            />
-          </div>
-
-          <div className="bg-neutral-900/40 border border-neutral-900 p-6 rounded-2xl shadow-xl">
-            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-              Attach Wireframes / Screenshots (Multi-modal Input)
-            </h2>
-            <div className="border-2 border-dashed border-neutral-800 hover:border-neutral-700 transition-colors rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer gap-2 group">
-              <svg className="w-8 h-8 text-neutral-600 group-hover:text-neutral-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              <span className="text-xs text-neutral-500 group-hover:text-neutral-400 font-medium">Click to upload sketch or app design images</span>
+        {/* Left Side: Input Panel */}
+        <section className="bg-slate-800/50 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Project Requirements & Description
+              </label>
+              <textarea
+                value={textPrompt}
+                onChange={(e) => setTextPrompt(e.target.value)}
+                placeholder="Describe your app concept, user flows, payment gateways, or core features here..."
+                className="w-full h-48 bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition resize-none text-sm"
+              />
             </div>
-          </div>
 
-          {error && (
-            <div className="bg-red-950/30 border border-red-900/50 text-red-400 text-xs p-4 rounded-xl font-mono">
-              ⚠️ {error}
+            {/* File Upload Box */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Attach Wireframes / Screenshots (Multi-modal Input)
+              </label>
+              <label className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 bg-slate-950/40 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition group">
+                <Upload className="w-8 h-8 text-slate-500 group-hover:text-indigo-400 mb-2 transition" />
+                <span className="text-xs text-slate-400 group-hover:text-slate-300">
+                  Click to upload sketch or app design images
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+
+              {/* Selected file preview names */}
+              {selectedFiles.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-indigo-400">Selected Files:</p>
+                  {selectedFiles.map((file, idx) => (
+                    <p key={idx} className="text-xs text-slate-400 flex items-center gap-1">
+                      📁 {file.name}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
 
-          <button
-            onClick={handleGenerateBRD}
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-600 text-white font-medium py-3 rounded-xl transition-all shadow-lg active:scale-[0.99] flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Assembling Agent Knowledge...
-              </>
-            ) : 'Generate BRD Document'}
-          </button>
+            {error && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-lg">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Analyzing Inputs & Generating BRD...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5" />
+                  Generate BRD Document
+                </>
+              )}
+            </button>
+          </form>
         </section>
 
-        {/* RIGHT COLUMN: Real-time Markdown Layout Viewer */}
-        <section className="bg-neutral-900/20 border border-neutral-900 rounded-2xl p-6 min-h-[600px] flex flex-col relative shadow-2xl">
-          <div className="flex justify-between items-center border-b border-neutral-900 pb-4 mb-4">
-            <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+        {/* Right Side: Output Panel */}
+        <section className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-[500px] flex flex-col">
+          <div className="border-b border-slate-800 pb-3 mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-400 tracking-wider uppercase">
               Generated BRD Output (Markdown View)
             </h2>
-            
-            {/* Dynamic PDF Trigger Action Button */}
-            {brd && (
+            {generatedBrd && (
               <button
                 onClick={downloadPDF}
-                className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs text-amber-400 font-medium py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors"
+                className="text-xs bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded-md transition"
               >
-                📥 Download BRD PDF
+                Download PDF
               </button>
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto max-h-[550px] pr-2">
-            {!brd && !loading && (
-              <div className="h-full flex flex-col items-center justify-center text-center text-neutral-600 gap-3 py-20">
-                <svg className="w-12 h-12 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                <p className="text-xs font-mono">Your structured Business Requirements Document will appear here after clicking generation.</p>
-              </div>
-            )}
-
-            {loading && (
-              <div className="space-y-4 py-6 animate-pulse">
-                <div className="h-4 bg-neutral-800 rounded w-2/3"></div>
-                <div className="h-3 bg-neutral-800 rounded w-full"></div>
-                <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
-                <div className="h-3 bg-neutral-800 rounded w-4/5"></div>
-              </div>
-            )}
-
-            {/* REACT MARKDOWN STYLING LAYER */}
-            {brd && (
-              <div 
-                id="brd-rendered-content" 
-                className="p-6 text-left border border-neutral-800/80 bg-neutral-950 rounded-xl relative overflow-hidden text-sm"
+          <div id="brd-content" className="flex-1 overflow-y-auto text-sm text-slate-300 leading-relaxed bg-slate-900/40 p-4 rounded-xl border border-slate-900">
+            {generatedBrd ? (
+              <ReactMarkdown 
+                components={{
+                  h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-4 text-white" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-lg font-semibold mt-6 mb-2 text-indigo-400" {...props} />,
+                  p: ({node, ...props}) => <p className="mb-3" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3" {...props} />,
+                }}
               >
-                {/* Visual Pinterest Golden Ambient Glow */}
-                <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-                
-                <ReactMarkdown
-                  components={{
-                    h1: ({node, ...props}) => <h1 className="text-xl font-bold text-white border-b border-neutral-900 pb-2 mb-4 tracking-tight" {...props} />,
-                    h2: ({node, ...props}) => <h2 className="text-base font-semibold text-amber-400 mt-6 mb-2 tracking-wide" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-sm font-medium text-neutral-200 mt-4 mb-2" {...props} />,
-                    p: ({node, ...props}) => <p className="text-neutral-300 leading-relaxed mb-3 text-xs" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc pl-5 text-neutral-300 space-y-1 mb-3 text-xs" {...props} />,
-                    li: ({node, ...props}) => <li className="marker:text-amber-500" {...props} />,
-                    code: ({node, inline, className, children, ...props}) => {
-                      return (
-                        <code className="bg-neutral-900 text-amber-300 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
-                          {children}
-                        </code>
-                      )
-                    }
-                  }}
-                >
-                  {brd}
-                </ReactMarkdown>
+                {generatedBrd}
+              </ReactMarkdown>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-600 text-center">
+                <FileText className="w-12 h-12 mb-2 stroke-[1]" />
+                <p className="text-xs">Your structured Business Requirements Document will appear here after clicking generation.</p>
               </div>
             )}
           </div>
         </section>
+
       </main>
     </div>
   );
 }
+
+export default App;

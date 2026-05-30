@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true })); // Handles standard form layout
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// MAIN ENDPOINT: Generate BRD (Using upload.none() if we only want text fields parsing securely)
-app.post('/api/generate-brd', upload.none(), async (req, res) => {
+// MAIN ENDPOINT: Generate BRD
+app.post('/api/generate-brd', upload.any(), async (req, res) => {
     try {
         // Log to see what is exactly reaching the server lines
         console.log("📥 Incoming Request Body:", req.body);
