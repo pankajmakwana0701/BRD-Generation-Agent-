@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const app = express();
 
+// Robust CORS Policy
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -50,7 +51,6 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             });
         }
 
-        // HERE IS THE FIXED OBJECT BLOCK WITH ROLE PROPERTY
         const payload = {
             contents: [
                 {
@@ -60,7 +60,9 @@ app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
             ]
         };
 
-        console.log("🚀 Hitting Gemini Stable Production Node...");
+        console.log("🚀 Hitting Gemini API Fixed Endpoint...");
+        
+        // FIX: URL se '/models/' ko correct pattern mein set kiya hai taaki 404 na aaye
         const response = await axios.post(
             `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
             payload,
