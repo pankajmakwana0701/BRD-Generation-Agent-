@@ -1,84 +1,84 @@
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const axios = require('axios');
+const express = require("express");
+const cors = require("cors");
+const multer = require("multer");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-require('dotenv').config();
+require("dotenv").config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Global CORS Config
+// GLOBAL MIDDLEWARES & CORS POLICY
 app.use(cors({
-    origin: "*", 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+  origin: "http://localhost:3000",
+  credentials: true
 }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.options('*', cors());
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// MAIN GENERATION ENDPOINT
-app.post('/api/generate-brd', upload.array('files', 5), async (req, res) => {
-    try {
-        console.log("📥 Request Received on Backend!");
-        const { textPrompt } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY;
+// Initialize Gemini AI Engine
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        if (!apiKey) {
-            console.error("❌ GEMINI_API_KEY is missing in Env Settings!");
-            return res.status(500).json({ error: "Backend Configuration Error: API Key missing." });
-        }
+// 1. ROUTE: GENERATE BRD SPECS
+app.post("/api/generate-brd", upload.array("files"), async (req, res) => {
+  try {
+    const { textPrompt } = req.body;
 
-        if (!textPrompt || textPrompt.trim() === "") {
-            return res.status(400).json({ error: "Please provide a valid text description." });
-        }
-
-        const systemPrompt = `You are an expert Enterprise Business Analyst. Generate a professional Business Requirements Document (BRD) in Markdown format. Include a system architecture flowchart using Mermaid.js syntax inside a code block tagged with 'mermaid'.`;
-
-        const partsArray = [
-            { text: `${systemPrompt}\n\nUser Project Description: ${textPrompt}` }
-        ];
-
-        // Process files if available
-        if (req.files && req.files.length > 0) {
-            req.files.forEach(file => {
-                partsArray.push({
-                    inlineData: {
-                        data: file.buffer.toString("base64"),
-                        mimeType: file.mimetype
-                    }
-                });
-            });
-        }
-
-        console.log("🚀 Generating content via Gemini SDK...");
-        const result = await model.generateContent({ contents: [{ role: 'user', parts: partsArray }] });
-        const response = await result.response;
-        const resultText = response.text();
-        
-        console.log("🎯 BRD Successfully generated!");
-        return res.json({ success: true, brd: resultText });
-
-    } catch (error) {
-        console.error("--- ERROR LOG ---");
-        if (error.response) {
-            console.error("Status Code:", error.response.status);
-            console.error("Details:", JSON.stringify(error.response.data));
-            res.status(500).json({ error: `Gemini Refused: ${error.response.data.error?.message || "Check Logs"}` });
-        } else {
-            console.error("Reason:", error.message);
-            res.status(500).json({ error: error.message });
-        }
+    if (!textPrompt) {
+      return res.status(400).json({ success: false, error: "Project requirements are missing." });
     }
+
+    // Fixed the syntax error here and shifted to stable gemini-2.5-flash
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash" 
+    });
+
+    const systemPrompt = `You are an elite Business Analyst AI. Generate a professional and comprehensive Business Requirement Document (BRD) based on the user's requirements. Use clean structure with Markdown. Requirements: ${textPrompt}`;
+
+    const result = await model.generateContent(systemPrompt);
+    const response = await result.response;
+    const brdText = response.text();
+
+    return res.json({
+      success: true,
+      brd: brdText
+    });
+
+  } catch (error) {
+    console.error("Gemini API Engine Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Internal Server Error during data compile."
+    });
+  }
 });
 
-app.get('/', (req, res) => {
-    res.send("BRD Agent Backend is live!");
+// 2. SAFE NATIVE PDF RETRIEVAL / BACKUP ROUTE
+app.post("/api/download-brd-pdf", (req, res) => {
+  try {
+    const { title, textPrompt, generatedBrd } = req.body;
+
+    // Setting standard text headers for download backup
+    res.setHeader("Content-Type", "text/markdown");
+    res.setHeader("Content-Disposition", `attachment; filename=BRD_${Date.now()}.md`);
+    
+    const outputContent = `# ${title || 'BRD Specifications'}\n\n## Requirements\n${textPrompt}\n\n## Specification Details\n${generatedBrd}`;
+    return res.send(outputContent);
+
+  } catch (error) {
+    console.error("Download Error:", error);
+    return res.status(500).json({ success: false, error: "Failed to download document compilation." });
+  }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Operational on port ${PORT}`));
+// SAFE CATCH-ALL ROUTE MIDDLEWARE (Express 5 Safe)
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "API endpoint route not found." });
+});
+
+// START BACKEND SYSTEM
+app.listen(PORT, () => {
+  console.log(`🚀 Server operating on: http://localhost:${PORT}`);
+});

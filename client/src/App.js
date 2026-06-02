@@ -38,11 +38,15 @@ function App() {
     });
 
     try {
-      const response = await axios.post('https://brd-generation-agent.onrender.com/api/generate-brd', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post(
+  "http://localhost:5000/api/generate-brd",
+  formData,
+  {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  }
+);
 
       if (response.data.success) {
         setGeneratedBrd(response.data.brd);
