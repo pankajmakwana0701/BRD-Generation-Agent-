@@ -1,3 +1,4 @@
+// 1. SECURE ENVIRONMENT VARIABLES CONFIGURATION (Sabse top par hona chahiye)
 require("dotenv").config();
 
 const express = require("express");
@@ -8,9 +9,10 @@ const axios = require("axios");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// 2. UNIVERSAL DYNAMIC CORS POLICY (Frontend cross-platform communication ke liye)
 app.use(
   cors({
-    origin: true,
+    origin: true, 
     credentials: true,
   })
 );
@@ -18,6 +20,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Multer implementation for multipart memory allocation
 const upload = multer({
   storage: multer.memoryStorage(),
 });
@@ -27,6 +30,7 @@ console.log("🚀 BRD SERVER STARTED");
 console.log("🔑 API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
 console.log("================================");
 
+// ====== BASE TEST ROUTES FOR BROWSER LOGGING ======
 app.get("/", (req, res) => {
   res.send("✅ BRD Backend Running");
 });
@@ -38,12 +42,12 @@ app.get("/test", (req, res) => {
   });
 });
 
-// ====== FIXED GEMINI-TEST ROUTE ======
+// ====== FIXED GEMINI-TEST ROUTE (Bypasses SDK OAuth Loops) ======
 app.get("/gemini-test", async (req, res) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ success: false, error: "GEMINI_API_KEY is missing in .env" });
+      return res.status(500).json({ success: false, error: "GEMINI_API_KEY is missing in .env configuration." });
     }
 
     // Direct HTTP Request to stable production v1 endpoint with correct model mapping
@@ -52,13 +56,7 @@ app.get("/gemini-test", async (req, res) => {
       contents: [{ parts: [{ text: "Say: Gemini API working successfully" }] }]
     };
 
-    // ❌ PURANA LOCAL URL (Ise replace karein):
-// const response = await axios.post("http://localhost:5000/api/generate-brd", formData);
-
-//  NAYA LIVE RENDER URL (Apne asli render URL ke sath badlein):
-    const RENDER_BACKEND_URL = "https://brd-generation-agent.onrender.com"; // <-- Yahan apna Render ka live Link daalein
-
-    const response = await axios.post(`${RENDER_BACKEND_URL}/api/generate-brd`, formData);
+    const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
     const text = response.data.candidates[0].content.parts[0].text;
 
     res.json({
@@ -67,7 +65,7 @@ app.get("/gemini-test", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("❌ GEMINI-TEST PIPELINE CRASH:", error.response?.data || error.message);
     res.status(500).json({
       success: false,
       error: error.response?.data?.error?.message || error.message,
@@ -75,27 +73,31 @@ app.get("/gemini-test", async (req, res) => {
   }
 });
 
-// ====== FIXED MAIN BRD GENERATION ROUTE ======
-app.post("/api/generate-brd", upload.array("files", 5), async (req, res) => {
-  try {
-    const { textPrompt } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+// ====== MAIN BUSINESS SPECIFICATION PIPELINE ======
+app.post(
+  "/api/generate-brd",
+  upload.array("files", 5),
+  async (req, res) => {
+    try {
+      const { textPrompt } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!textPrompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Project requirements missing",
-      });
-    }
+      if (!textPrompt) {
+        return res.status(400).json({
+          success: false,
+          error: "Project requirements missing",
+        });
+      }
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        error: "Server environment missing GEMINI_API_KEY token.",
-      });
-    }
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "Server ecosystem missing GEMINI_API_KEY parameter token.",
+        });
+      }
 
-    const prompt = `
+      // Professional Business Analyst structural engine prompt blueprint
+      const prompt = `
 You are an expert Business Analyst.
 Create a professional BRD in Markdown.
 Include:
@@ -112,32 +114,35 @@ Include:
 Project Description:
 ${textPrompt}`;
 
-    // FIXED PRODUCTION ENDPOINT: Force stable network matching
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const payload = {
-      contents: [{ parts: [{ text: prompt }] }]
-    };
+      // FIXED MODEL AND VERSION ENDPOINT: Bypasses 404, 401 and GCP permission tokens entirely
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }]
+      };
 
-    const googleResponse = await axios.post(url, payload, {
-      headers: { "Content-Type": "application/json" }
-    });
+      const googleResponse = await axios.post(url, payload, {
+        headers: { "Content-Type": "application/json" }
+      });
 
-    const brd = googleResponse.data.candidates[0].content.parts[0].text;
+      // Safely parsing response tree from Google AI core structure
+      const brd = googleResponse.data.candidates[0].content.parts[0].text;
 
-    return res.json({
-      success: true,
-      brd,
-    });
-  } catch (error) {
-    console.error("❌ BRD ERROR:");
-    console.error(error.response?.data || error.message);
+      return res.json({
+        success: true,
+        brd,
+      });
 
-    return res.status(500).json({
-      success: false,
-      error: error.response?.data?.error?.message || error.message,
-    });
+    } catch (error) {
+      console.error("❌ BRD GENERATION ERROR STACK:");
+      console.error(error.response?.data || error.message);
+
+      return res.status(500).json({
+        success: false,
+        error: error.response?.data?.error?.message || error.message,
+      });
+    }
   }
-});
+);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
