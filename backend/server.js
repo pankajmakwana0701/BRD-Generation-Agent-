@@ -6,10 +6,26 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const allowedOrigins = [
+  "http://localhost:3000",
+];
 
-// GLOBAL MIDDLEWARES & CORS POLICY
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: function (origin, callback) {
+    // Agar local call hai ya direct fetch (no origin), allow it
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches localhost OR contains your vercel domain identity
+    const isVercelSubdomain = origin.endsWith("pankajmakwana070127.vercel.app");
+    const isLocal = allowedOrigins.includes(origin);
+
+    if (isLocal || isVercelSubdomain) {
+      return callback(null, true);
+    } else {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
