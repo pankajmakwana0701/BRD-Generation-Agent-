@@ -52,7 +52,13 @@ app.get("/gemini-test", async (req, res) => {
       contents: [{ parts: [{ text: "Say: Gemini API working successfully" }] }]
     };
 
-    const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
+    // ❌ PURANA LOCAL URL (Ise replace karein):
+// const response = await axios.post("http://localhost:5000/api/generate-brd", formData);
+
+//  NAYA LIVE RENDER URL (Apne asli render URL ke sath badlein):
+    const RENDER_BACKEND_URL = "https://brd-generation-agent.onrender.com"; // <-- Yahan apna Render ka live Link daalein
+
+    const response = await axios.post(`${RENDER_BACKEND_URL}/api/generate-brd`, formData);
     const text = response.data.candidates[0].content.parts[0].text;
 
     res.json({
