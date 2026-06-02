@@ -1,41 +1,45 @@
+// ====== IMPORTANT: LOAD ENV AT THE VERY TOP ======
+require("dotenv").config(); 
+
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ====== CORS CONFIGURATION FOR VERCEL SUBDOMAINS ======
 const allowedOrigins = [
   "http://localhost:3000",
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Agar local call hai ya direct fetch (no origin), allow it
     if (!origin) return callback(null, true);
     
-    // Check if origin matches localhost OR contains your vercel domain identity
+    // Auto-match any dynamic preview or production URL from your Vercel project
     const isVercelSubdomain = origin.endsWith("pankajmakwana070127.vercel.app");
     const isLocal = allowedOrigins.includes(origin);
 
     if (isLocal || isVercelSubdomain) {
       return callback(null, true);
     } else {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+      return callback(new Error('CORS policy block'), false);
     }
   },
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Initialize Gemini AI Engine
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini safely by passing the key explicitly from process.env
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(apiKey);
 
 // 1. ROUTE: GENERATE BRD SPECS
 app.post("/api/generate-brd", upload.array("files"), async (req, res) => {
@@ -46,11 +50,14 @@ app.post("/api/generate-brd", upload.array("files"), async (req, res) => {
       return res.status(400).json({ success: false, error: "Project requirements are missing." });
     }
 
-    // Fixed the syntax error here and shifted to stable gemini-2.5-flash
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash" 
-    });
+    // Double check if API key loaded fine inside runtime environment
+    if (!apiKey) {
+      return res.status(500).json({ success: false, error: "Backend missing GEMINI_API_KEY in environment configuration." });
+    }
 
+    // Call dynamic model safely
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    
     const systemPrompt = `You are an elite Business Analyst AI. Generate a professional and comprehensive Business Requirement Document (BRD) based on the user's requirements. Use clean structure with Markdown. Requirements: ${textPrompt}`;
 
     const result = await model.generateContent(systemPrompt);
@@ -71,12 +78,11 @@ app.post("/api/generate-brd", upload.array("files"), async (req, res) => {
   }
 });
 
-// 2. SAFE NATIVE PDF RETRIEVAL / BACKUP ROUTE
+// 2. ROUTE: DOWNLOAD REPORT PDF / MARKDOWN
 app.post("/api/download-brd-pdf", (req, res) => {
   try {
     const { title, textPrompt, generatedBrd } = req.body;
 
-    // Setting standard text headers for download backup
     res.setHeader("Content-Type", "text/markdown");
     res.setHeader("Content-Disposition", `attachment; filename=BRD_${Date.now()}.md`);
     
@@ -89,12 +95,12 @@ app.post("/api/download-brd-pdf", (req, res) => {
   }
 });
 
-// SAFE CATCH-ALL ROUTE MIDDLEWARE (Express 5 Safe)
+// SAFE CATCH-ALL MIDDLEWARE
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "API endpoint route not found." });
 });
 
-// START BACKEND SYSTEM
+// START SERVER
 app.listen(PORT, () => {
-  console.log(`🚀 Server operating on: http://localhost:${PORT}`);
+  console.log(`🚀 Server successfully operating on target port: http://localhost:${PORT}`);
 });
