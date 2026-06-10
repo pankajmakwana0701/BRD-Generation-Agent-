@@ -19,6 +19,7 @@ function DietPlanner() {
     diet: "veg",
     activity: "1.2",
     restrictions: [],
+    healthConditions: [],
   });
 
   const RENDER_BACKEND_URL = "https://brd-generation-agent.onrender.com";
@@ -38,11 +39,11 @@ function DietPlanner() {
 
   const toggleChip = (field, val) => {
     setForm((f) => {
-      if (field === "restrictions") {
-        const cur = f.restrictions;
+      if (field === "restrictions" || field === "healthConditions") {
+        const cur = f[field];
         return {
           ...f,
-          restrictions: cur.includes(val)
+          [field]: cur.includes(val)
             ? cur.filter((x) => x !== val)
             : [...cur, val],
         };
@@ -73,6 +74,11 @@ function DietPlanner() {
         ? "None"
         : form.restrictions.join(", ");
 
+    const healthLabel =
+      form.gender !== "female" || form.healthConditions.length === 0 || form.healthConditions.includes("none")
+        ? "None"
+        : form.healthConditions.join(", ").toUpperCase();
+
     const prompt = `You are a certified nutritionist. Create a personalized 1-day Indian diet plan as JSON.
 
 User Profile:
@@ -81,7 +87,9 @@ User Profile:
 - Diet type: ${dietLabels[form.diet]}
 - Activity: ${actLabels[form.activity]}
 - Restrictions: ${restricLabel}
+- Health Conditions: ${healthLabel}
 - Daily calorie target: ${cal} kcal
+${healthLabel !== "None" ? `- IMPORTANT: Meal plan must be specifically tailored for ${healthLabel}. Include foods that help manage this condition and avoid foods that worsen it.` : ""}
 
 Return ONLY valid JSON (no markdown, no backticks, no explanation):
 {
@@ -215,6 +223,29 @@ Return ONLY valid JSON (no markdown, no backticks, no explanation):
                 />
               ))}
             </div>
+
+            {form.gender === "female" && (
+              <div>
+                <SectionLabel>Health conditions (optional)</SectionLabel>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {[
+                    { val: "pcod", label: "PCOD" },
+                    { val: "pcos", label: "PCOS" },
+                    { val: "thyroid", label: "Thyroid" },
+                    { val: "diabetes", label: "Diabetes" },
+                    { val: "anemia", label: "Anemia" },
+                    { val: "none", label: "None" },
+                  ].map((c) => (
+                    <Chip
+                      key={c.val}
+                      label={c.label}
+                      selected={form.healthConditions.includes(c.val)}
+                      onClick={() => toggleChip("healthConditions", c.val)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {form.goal !== "maintain" && (
               <div>
