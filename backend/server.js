@@ -9,7 +9,6 @@ const axios = require("axios");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// 2. UNIVERSAL DYNAMIC CORS POLICY
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,7 +26,6 @@ app.get("/test", (req, res) => {
   res.json({
     success: true,
     geminiKeyFound: !!process.env.GEMINI_API_KEY,
-    claudeKeyFound: !!process.env.ANTHROPIC_API_KEY,
   });
 });
 
@@ -37,7 +35,7 @@ app.get("/gemini-test", async (req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ success: false, error: "GEMINI_API_KEY missing." });
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest-latest-latest:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: "Say: Gemini API working successfully" }] }] };
 
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
@@ -74,7 +72,7 @@ Include:
 Project Description:
 ${textPrompt}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
 
     const googleResponse = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
@@ -96,7 +94,7 @@ app.post("/api/generate-diet", async (req, res) => {
     if (!prompt) return res.status(400).json({ success: false, error: "Prompt missing" });
     if (!apiKey) return res.status(500).json({ success: false, error: "Server missing GEMINI_API_KEY." });
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
     };
@@ -104,7 +102,6 @@ app.post("/api/generate-diet", async (req, res) => {
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
     const rawText = response.data.candidates[0].content.parts[0].text;
 
-    // Robust JSON extraction - find first { to last }
     const jsonStart = rawText.indexOf("{");
     const jsonEnd = rawText.lastIndexOf("}");
     if (jsonStart === -1 || jsonEnd === -1) {
