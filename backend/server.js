@@ -49,7 +49,7 @@ Include:
 Project Description:
 ${textPrompt}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/Gemini-2.5-Pro:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const googleResponse = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
     const brd = googleResponse.data.candidates[0].content.parts[0].text;
@@ -68,7 +68,7 @@ app.post("/api/generate-diet", async (req, res) => {
     if (!prompt) return res.status(400).json({ success: false, error: "Prompt missing" });
     if (!apiKey) return res.status(500).json({ success: false, error: "Server missing GEMINI_API_KEY." });
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
     const rawText = response.data.candidates[0].content.parts[0].text;
