@@ -99,7 +99,6 @@ app.post("/api/generate-diet", async (req, res) => {
     const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" },
     };
 
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
