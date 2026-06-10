@@ -554,29 +554,7 @@ function App() {
                 onChange={(e) => setTextPrompt(e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-semibold tracking-wide uppercase text-gray-400 mb-2">
-                Attach Wireframes / Screenshots (Multi-modal Input)
-              </label>
-              <div className="border-2 border-dashed border-gray-800 hover:border-purple-500/50 bg-[#0a0d16] rounded-xl p-6 transition-colors text-center relative cursor-pointer group/upload">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <div className="space-y-2">
-                  <div className="text-2xl text-gray-500 group-hover/upload:text-purple-400 transition-colors">📤</div>
-                  <p className="text-sm text-gray-400 font-medium">Click to upload sketch or app design images</p>
-                  {selectedFiles.length > 0 && (
-                    <p className="text-xs text-purple-400 font-semibold bg-purple-500/10 inline-block px-2.5 py-1 rounded-md mt-2">
-                      📎 {selectedFiles.length} files staged for analysis
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+
             {errorMessage && (
               <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-xl p-4 leading-relaxed">
                 ⚠️ {errorMessage}
