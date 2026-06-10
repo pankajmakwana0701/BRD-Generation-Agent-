@@ -19,7 +19,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 console.log("================================");
 console.log("🚀 BRD SERVER STARTED");
 console.log("🔑 GEMINI API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
-console.log("🔑 CLAUDE API KEY EXISTS:", !!process.env.ANTHROPIC_API_KEY);
 console.log("================================");
 
 app.get("/", (req, res) => res.send("✅ BRD Backend Running"));
@@ -88,34 +87,23 @@ ${textPrompt}`;
   }
 });
 
-// ====== DIET PLAN GENERATION ROUTE (Claude) ======
+// ====== DIET PLAN GENERATION ROUTE (Gemini - Free) ======
 app.post("/api/generate-diet", async (req, res) => {
   try {
     const { prompt } = req.body;
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!prompt) return res.status(400).json({ success: false, error: "Prompt missing" });
-    if (!apiKey) return res.status(500).json({ success: false, error: "Server missing ANTHROPIC_API_KEY." });
+    if (!apiKey) return res.status(500).json({ success: false, error: "Server missing GEMINI_API_KEY." });
 
-    const response = await axios.post(
-      "https://api.anthropic.com/v1/messages",
-      {
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        messages: [{ role: "user", content: prompt }],
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-      }
-    );
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" },
+    };
 
-    const text = response.data.content
-      .map((i) => i.text || "")
-      .join("")
+    const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
+    const text = response.data.candidates[0].content.parts[0].text
       .replace(/```json|```/g, "")
       .trim();
 
