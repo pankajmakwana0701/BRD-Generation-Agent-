@@ -15,9 +15,17 @@ app.use(express.urlencoded({ extended: true }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// FIX: gemini-1.5-flash aur gemini-2.0-flash dono ab shutdown ho chuke hain.
+// gemini-2.5-flash use kar rahe hain - fast, free-tier friendly, aur BRD/diet
+// jaise text tasks ke liye 2.5 Pro jaisa hi accha. Sirf yahan model name badlo
+// agar future me change karna ho (e.g. "gemini-2.5-pro").
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
 console.log("================================");
 console.log("🚀 BRD SERVER STARTED");
 console.log("🔑 GEMINI API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
+console.log("🤖 MODEL:", GEMINI_MODEL);
 console.log("================================");
 
 app.get("/", (req, res) => res.send("✅ BRD Backend Running"));
@@ -29,13 +37,34 @@ app.get("/test", (req, res) => {
   });
 });
 
+// ====== LIST AVAILABLE MODELS (debugging helper) ======
+// Browser me kholo: /list-models  -> ye dikhayega aapki key ke saath kaunse
+// models available hain aur kaun generateContent support karta hai.
+app.get("/list-models", async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ success: false, error: "GEMINI_API_KEY missing." });
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const response = await axios.get(url);
+
+    const models = (response.data.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map((m) => m.name);
+
+    res.json({ success: true, usableModels: models });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.response?.data?.error?.message || error.message });
+  }
+});
+
 // ====== GEMINI TEST ROUTE ======
 app.get("/gemini-test", async (req, res) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ success: false, error: "GEMINI_API_KEY missing." });
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `${GEMINI_BASE}?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: "Say: Gemini API working successfully" }] }] };
 
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
@@ -72,11 +101,11 @@ Include exact sections:
 Project Description:
 ${textPrompt}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `${GEMINI_BASE}?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
 
     const googleResponse = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
-    
+
     if (!googleResponse.data.candidates?.[0]?.content?.parts?.[0]?.text) {
       throw new Error("Invalid structure or empty content from Gemini API");
     }
@@ -89,72 +118,38 @@ ${textPrompt}`;
   }
 });
 
-// ====== DIET PLAN GENERATION ROUTE (Gemini - Structured & Safe) ======
+// ====== DIET PLAN GENERATION ROUTE (Gemini) ======
+// Frontend ek poora `prompt` bhejta hai. responseMimeType se clean JSON milega
+// jo frontend ke meals/tips/avoid structure se match karega.
 app.post("/api/generate-diet", async (req, res) => {
   try {
-    const { age, weight, height, gender, goal, dietType } = req.body;
+    const { prompt } = req.body;
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Direct object key validation to avoid messy string operations
-    if (!age || !weight || !height || !gender || !goal || !dietType) {
-      return res.status(400).json({ success: false, error: "Missing required profile metrics for diet generation." });
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: "Prompt missing for diet generation." });
     }
     if (!apiKey) return res.status(500).json({ success: false, error: "Server missing GEMINI_API_KEY." });
 
-    const systemPrompt = `You are an expert nutritionist. Generate a detailed, culturally tailored Indian diet plan matching the user's bodily metrics and fitness goals. Provide exact food suggestions suitable for Indian households.`;
-    const userPrompt = `Metrics: Age ${age}, Weight ${weight}kg, Height ${height}cm, Gender ${gender}, Goal ${goal}, Preference: ${dietType}.`;
+    const url = `${GEMINI_BASE}?key=${apiKey}`;
 
-    // REST base URL using the exact model configuration
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-    
-    // REST API Object matching strict Google schema rules
     const payload = {
-      contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            totalCalories: { type: "NUMBER" },
-            macroSplit: {
-              type: "OBJECT",
-              properties: {
-                protein: { type: "STRING" },
-                carbs: { type: "STRING" },
-                fats: { type: "STRING" }
-              },
-              required: ["protein", "carbs", "fats"]
-            },
-            dietPlan: {
-              type: "OBJECT",
-              properties: {
-                breakfast: { type: "STRING" },
-                lunch: { type: "STRING" },
-                snack: { type: "STRING" },
-                dinner: { type: "STRING" }
-              },
-              required: ["breakfast", "lunch", "snack", "dinner"]
-            },
-            foodsToAvoid: {
-              type: "ARRAY",
-              items: { type: "STRING" }
-            }
-          },
-          required: ["totalCalories", "macroSplit", "dietPlan", "foodsToAvoid"]
-        }
-      }
+      },
     };
 
     const response = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
-    
-    if (!response.data.candidates?.[0]?.content?.parts?.[0]?.text) {
+
+    const rawText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
       throw new Error("Failed to capture structured JSON content from Gemini response context.");
     }
 
-    // Because responseMimeType is enforced, this is 100% clean JSON string. No slicing needed!
-    const rawText = response.data.candidates[0].content.parts[0].text;
+    // Because responseMimeType is enforced, this is clean JSON. No slicing needed.
     const plan = JSON.parse(rawText);
-    
+
     return res.json({ success: true, plan });
   } catch (error) {
     console.error("❌ DIET ERROR:", error.response?.data || error.message);

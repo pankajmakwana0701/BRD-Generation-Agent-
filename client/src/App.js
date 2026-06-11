@@ -424,7 +424,7 @@ Return ONLY valid JSON (no markdown, no backticks, no explanation):
               </p>
             </div>
           ) : activeTab === "meals" ? (
-            plan.meals.map((meal, i) => (
+            (plan.meals || []).map((meal, i) => (
               <div key={i} className="bg-[#0a0d16] border border-gray-800 rounded-xl p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -437,25 +437,27 @@ Return ONLY valid JSON (no markdown, no backticks, no explanation):
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  {meal.items.join(" · ")}
+                  {(meal.items || []).join(" · ")}
                 </p>
               </div>
             ))
           ) : activeTab === "tips" ? (
             <>
-              {plan.tips.map((tip, i) => (
+              {(plan.tips || []).map((tip, i) => (
                 <div key={i} className="bg-[#0a0d16] border border-gray-800 rounded-xl p-4 flex gap-3">
                   <span className="text-yellow-500 text-sm mt-0.5">💡</span>
                   <p className="text-xs text-gray-400 leading-relaxed">{tip}</p>
                 </div>
               ))}
-              <div className="bg-[#0a0d16] border border-gray-800 rounded-xl p-4 flex gap-3">
-                <span className="text-blue-400 text-sm mt-0.5">💧</span>
-                <p className="text-xs text-gray-400 leading-relaxed">{plan.hydration}</p>
-              </div>
+              {plan.hydration && (
+                <div className="bg-[#0a0d16] border border-gray-800 rounded-xl p-4 flex gap-3">
+                  <span className="text-blue-400 text-sm mt-0.5">💧</span>
+                  <p className="text-xs text-gray-400 leading-relaxed">{plan.hydration}</p>
+                </div>
+              )}
             </>
           ) : (
-            plan.avoid.map((item, i) => (
+            (plan.avoid || []).map((item, i) => (
               <div key={i} className="bg-[#0a0d16] border border-gray-800 rounded-xl p-4 flex gap-3">
                 <span className="text-rose-400 text-sm mt-0.5">✕</span>
                 <p className="text-xs text-gray-400 leading-relaxed">{item}</p>
