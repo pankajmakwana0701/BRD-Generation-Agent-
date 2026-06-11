@@ -15,10 +15,8 @@ app.use(express.urlencoded({ extended: true }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// FIX: gemini-1.5-flash aur gemini-2.0-flash dono ab shutdown ho chuke hain.
-// gemini-2.5-flash use kar rahe hain - fast, free-tier friendly, aur BRD/diet
-// jaise text tasks ke liye 2.5 Pro jaisa hi accha. Sirf yahan model name badlo
-// agar future me change karna ho (e.g. "gemini-2.5-pro").
+// gemini-1.5-flash aur gemini-2.0-flash dono shutdown ho chuke hain.
+// gemini-2.5-flash use kar rahe hain. Sirf yahan model name badlo agar zaroorat ho.
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
@@ -38,8 +36,6 @@ app.get("/test", (req, res) => {
 });
 
 // ====== LIST AVAILABLE MODELS (debugging helper) ======
-// Browser me kholo: /list-models  -> ye dikhayega aapki key ke saath kaunse
-// models available hain aur kaun generateContent support karta hai.
 app.get("/list-models", async (req, res) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -118,9 +114,43 @@ ${textPrompt}`;
   }
 });
 
+// ====== HELPER: Gemini ke response se clean JSON nikaalo ======
+// Kabhi-kabhi model ```json ... ``` fences ya extra text ke saath JSON deta hai.
+// Ye helper us gandagi ko hata kar pure JSON object/array nikaalta hai.
+function safeParseJSON(rawText) {
+  if (!rawText) throw new Error("Empty text from Gemini, parse nahi kar sakte.");
+
+  // 1) Pehle seedha try karo
+  try {
+    return JSON.parse(rawText);
+  } catch (e) {
+    // continue to cleanup
+  }
+
+  // 2) Markdown code fences hatao (```json ... ``` ya ``` ... ```)
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+  // 3) Pehle '{' ya '[' se le kar aakhri '}' ya ']' tak ka hissa kaato
+  const firstBrace = cleaned.indexOf("{");
+  const firstBracket = cleaned.indexOf("[");
+  let start = -1;
+  if (firstBrace === -1) start = firstBracket;
+  else if (firstBracket === -1) start = firstBrace;
+  else start = Math.min(firstBrace, firstBracket);
+
+  const lastBrace = cleaned.lastIndexOf("}");
+  const lastBracket = cleaned.lastIndexOf("]");
+  const end = Math.max(lastBrace, lastBracket);
+
+  if (start !== -1 && end !== -1 && end > start) {
+    cleaned = cleaned.slice(start, end + 1);
+  }
+
+  return JSON.parse(cleaned);
+}
+
 // ====== DIET PLAN GENERATION ROUTE (Gemini) ======
-// Frontend ek poora `prompt` bhejta hai. responseMimeType se clean JSON milega
-// jo frontend ke meals/tips/avoid structure se match karega.
 app.post("/api/generate-diet", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -137,6 +167,7 @@ app.post("/api/generate-diet", async (req, res) => {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
+        temperature: 0.7,
       },
     };
 
@@ -144,11 +175,13 @@ app.post("/api/generate-diet", async (req, res) => {
 
     const rawText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) {
-      throw new Error("Failed to capture structured JSON content from Gemini response context.");
+      // Pura response log karo taaki pata chale Gemini ne kya bheja (safety block etc.)
+      console.error("❌ DIET: No text in response ->", JSON.stringify(response.data));
+      throw new Error("Gemini se khaali ya block kiya hua response aaya.");
     }
 
-    // Because responseMimeType is enforced, this is clean JSON. No slicing needed.
-    const plan = JSON.parse(rawText);
+    // Robust parsing - fences/extra text handle karta hai
+    const plan = safeParseJSON(rawText);
 
     return res.json({ success: true, plan });
   } catch (error) {
